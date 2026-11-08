@@ -28,14 +28,25 @@ class SGD(Optimizer):
             self.state['m'] = [np.zeros_like(param) for param in parameters]
 
         for param, grad, m in zip(parameters, gradients, self.state['m']):
-            """
-            your code here ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
-              - update momentum variable (m)
-              - update parameter variable (param)
-            hint: consider using np.add(..., out=m) for in place addition,
-              i.e. we need to change original array, not its copy
-            """
-            pass
+            # копируем градиент, чтобы не портить оригинал
+            g = grad.copy()
+
+            # добавляем L2-штраф за большие веса, если задан weight_decay
+            if self.weight_decay != 0.0:
+                g = g + self.weight_decay * param
+
+            if self.momentum != 0.0:
+                # обновляем накопленную инерцию: m = momentum * m + g
+                np.add(m * self.momentum, g, out=m)
+                # если nesterov — двигаемся по «сдвинутому» направлению
+                if self.nesterov:
+                    g = g + self.momentum * m
+                else:
+                    g = m
+            # если momentum == 0 — просто двигаемся по градиенту g
+
+            # сдвигаем сам параметр: param -= lr * g
+            np.add(param, -self.lr * g, out=param)
 
 
 class Adam(Optimizer):
@@ -70,12 +81,22 @@ class Adam(Optimizer):
         self.state['t'] += 1
         t = self.state['t']
         for param, grad, m, v in zip(parameters, gradients, self.state['m'], self.state['v']):
-            """
-            your code here ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
-              - update first moment variable (m)
-              - update second moment variable (v)
-              - update parameter variable (param)
-            hint: consider using np.add(..., out=m) for in place addition,
-              i.e. we need to change original array, not its copy
-            """
-            pass
+            # копируем градиент, чтобы не портить оригинал
+            g = grad.copy()
+
+            # добавляем L2-штраф, если задан weight_decay
+            if self.weight_decay != 0.0:
+                g = g + self.weight_decay * param
+
+            # обновляем первый момент (средний градиент)
+            np.add(m * self.beta1, (1.0 - self.beta1) * g, out=m)
+
+            # обновляем второй момент (средний квадрат градиента)
+            np.add(v * self.beta2, (1.0 - self.beta2) * (g ** 2), out=v)
+
+            # поправка на смещение: в начале обучения m и v занижены
+            m_hat = m / (1.0 - self.beta1 ** t)
+            v_hat = v / (1.0 - self.beta2 ** t)
+
+            # сдвигаем параметр
+            np.add(param, -self.lr * m_hat / (np.sqrt(v_hat) + self.eps), out=param)

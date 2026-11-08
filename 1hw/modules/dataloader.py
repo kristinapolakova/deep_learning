@@ -1,3 +1,4 @@
+import numpy as np
 class DataLoader(object):
     """
     Tool for shuffling data and forming mini-batches
@@ -20,22 +21,31 @@ class DataLoader(object):
         """
         :return: number of batches per epoch
         """
-        # replace with your code ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
-        return 0
+        # число батчей = округление вверх от (число объектов / размер батча)
+        # например, 100 объектов и батч 32 — будет 4 батча (3 полных + 1 неполный)
+        return (self.X.shape[0] + self.batch_size - 1) // self.batch_size
 
     def num_samples(self) -> int:
         """
         :return: number of data samples
         """
-        # replace with your code ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
-        return 0
+        # просто число строк в X
+        return self.X.shape[0]
 
     def __iter__(self):
         """
         Shuffle data samples if required
         :return: self
         """
-        # your code here ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
+        if self.shuffle:
+            # перемешиваем индексы: получим массив [3, 0, 5, 2, ...] в случайном порядке
+            self.indices = np.random.permutation(self.X.shape[0])
+        else:
+            # идём по порядку: [0, 1, 2, ...]
+            self.indices = np.arange(self.X.shape[0])
+
+        # обнуляем счётчик батчей
+        self.batch_id = 0
         return self
 
     def __next__(self):
@@ -43,5 +53,19 @@ class DataLoader(object):
         Form and return next data batch
         :return: (x_batch, y_batch)
         """
-        # your code here ｀、ヽ｀、ヽ(ノ＞＜)ノ ヽ｀☂｀、ヽ
-        raise StopIteration
+        # когда все батчи выданы — сигнализируем об этом
+        if self.batch_id >= len(self):
+            raise StopIteration
+
+        # вычисляем, какие строки взять: от start до end (не включая end)
+        start = self.batch_id * self.batch_size
+        end = min(start + self.batch_size, self.X.shape[0])
+
+        # индексы этих строк (с учётом перемешивания)
+        idx = self.indices[start:end]
+
+        # увеличиваем счётчик батчей
+        self.batch_id += 1
+
+        # возвращаем порцию данных
+        return self.X[idx], self.y[idx]
